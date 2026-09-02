@@ -1,7 +1,7 @@
 # Zune-Inspired Windows Shell Project Plan
 
 **Working product name:** Ember Start  
-**Plan status:** Council-reviewed implementation baseline  
+**Plan status:** Gate G0 passed — Phase 1 feasibility implementation authorized
 **Prepared:** 2026-08-31  
 **Target platform:** Windows 11 x64, beginning with the owner's dual-monitor AMD PC  
 **Product direction:** A safe, reversible Start-menu companion first; an optional custom taskbar only after a separate feasibility gate
@@ -43,7 +43,7 @@ Version 1 must provide:
 - Pointer, keyboard, touch, screen-reader, contrast-theme, and text-scaling support.
 - Correct behavior on either monitor, including mixed DPI, negative coordinates, portrait layouts, hot-plugging, and primary-monitor changes.
 - Per-user startup, single-instance behavior, local settings, export/reset, clean uninstall, and an explicit native Start fallback.
-- A stable external `--toggle` activation contract so RetroBar or a future taskbar can open the menu without knowing its internals.
+- Stable external activation contracts: simple `--toggle`/`--show`/`--hide` for command and hotkey fallback, plus a strict versioned integrated form through which RetroBar can supply physical anchor/edge context without knowing menu internals.
 
 ### 2.3 Explicit non-goals for version 1
 
@@ -61,7 +61,7 @@ Version 1 must provide:
 After the Start menu is stable, the project may evaluate:
 
 - Local file search through the Windows Search index, disabled by default.
-- A configurable upstream RetroBar integration that invokes `EmberStart.exe --toggle`.
+- A configurable upstream RetroBar integration that invokes the strict versioned integrated form defined by ADR-005; plain `--toggle` remains the context-free fallback.
 - An original icon pack used only inside Ember Start.
 - A separate dual-monitor AppBar/taskbar process using documented APIs and, preferably, ManagedShell.
 - A companion Windows `.theme` file containing wallpaper, supported accent settings, and sounds, with a one-click restore path.
@@ -105,21 +105,24 @@ Use a neutral public product name such as **Ember Start**. “Zune-inspired” c
 
 ### 5.2 Proposed original design tokens
 
-These are new project values, not copied Microsoft assets.
+These are new project values, not copied Microsoft assets. The canonical state rules, additional semantic tokens, exact layout units, and reproducible accessibility protocol are maintained in [the visual and accessibility baseline](design/VISUAL_ACCESSIBILITY_BASELINE.md).
 
 | Token | Value | Use |
 |---|---:|---|
 | `Canvas` | `#101010` | Window background |
 | `Surface` | `#1B1A18` | Primary panels |
 | `SurfaceRaised` | `#25221E` | Hovered/raised areas |
-| `Accent` | `#F5841F` | Selection and principal action |
+| `Accent` | `#F5841F` | Accent rail, glyph, and principal emphasis |
+| `OnAccent` | `#101010` | Text/icons on bright Accent |
+| `Selection` | `#AD4D00` | Selected-row fill |
 | `TextPrimary` | `#F5F5F5` | Main text |
 | `TextSecondary` | `#BDBDBD` | Supporting text |
 | `Focus` | `#FFD166` | Keyboard focus ring |
-| `Divider` | `#3A3834` | Separators and outlines |
+| `Divider` | `#3A3834` | Decorative separators only |
+| `OutlineStrong` | `#6F6B64` | Essential control boundaries |
 | Typography | Segoe UI Variable | Windows-native legibility |
 | Spacing | 4/8 effective-pixel grid | Layout rhythm |
-| Row/touch target | 40 effective pixels minimum | Pointer and touch access |
+| Row/touch target | 44 effective pixels minimum | Pointer and touch access; 48 in touch density |
 | Corner radius | 2–4 effective pixels | Restrained retro geometry |
 | Motion | 120–170 ms | Fast open/close and selection |
 
@@ -139,13 +142,13 @@ The home view uses a familiar two-column arrangement:
 ### 5.4 Interaction contract
 
 - Only one menu exists per user session. It moves to the invoking monitor rather than creating one process/window per display.
-- The activation contract carries the Windows session ID, invocation source, monitor identity, and optional anchor rectangle. A plain `toggle` without placement context is used only as a fallback.
+- Authorization derives from the connected process token and active Windows session, never a payload session claim. The strict integrated form carries a fixed source/edge enum and validated physical anchor rectangle; a plain `toggle` without placement context uses resident-side foreground→pointer→primary fallback.
 - Pointer invocation anchors to the selected taskbar edge and Start-button region.
 - Keyboard invocation opens on the monitor containing the foreground window; if no suitable foreground window exists, use the pointer's monitor, then the primary monitor.
 - Typing from the home view immediately enters search.
 - Arrow keys move through results; Enter launches; Escape dismisses; Shift+F10 opens context actions.
 - Clicking outside, launching an item, removing the active display, or invoking Start a second time dismisses the menu.
-- `Shift+Win` or an explicit “Open Windows Start” command remains the native escape hatch if bare-Windows-key integration is ever enabled.
+- `Ctrl+Esc` or an explicit “Open Windows Start” command remains the native escape hatch. All operating-system Windows-key shortcuts remain untouched.
 - Restart and shut down use clear confirmation by default during alpha and beta. The user may later opt out.
 - Animations stop when Windows reduced-motion settings request it.
 
@@ -170,12 +173,12 @@ Use the Windows App SDK incrementally only if a specific lifecycle, notification
 
 ### 6.2 Process model
 
-- One resident, per-user, medium-integrity WPF process.
+- One resident, per-user, medium-integrity WPF process. Because `asInvoker` can inherit a high-integrity parent token, startup rejects integrity above medium rather than retaining elevation.
 - No Windows service, scheduled task, driver, broker, or runtime administrator process.
 - A single-instance coordinator redirects later activations to the resident process.
 - Instance names, mutexes, and named pipes include both the current user's SID and Windows session ID so concurrent console/RDP sessions cannot collide.
-- A named pipe restricted to that interactive user SID accepts a small versioned command set such as `toggle`, `show`, `hide`, `settings`, and `native-start`. LocalSystem is not admitted to the normal UI pipe.
-- App discovery, search scoring, and icon loading are cancellable background operations.
+- A named pipe with explicit non-inheriting ACLs restricted to that interactive user SID accepts a small versioned command set such as `toggle`, `show`, `hide`, and `settings`. Both endpoints validate the peer SID, Windows session, and integrity from its process token rather than trusting payload fields. LocalSystem and elevated clients are not admitted to the normal UI pipe. Same-user/same-session/same-integrity malware remains outside the security boundary, so the protocol minimizes capability rather than claiming application identity.
+- Search scoring and managed queue work are cancellable background operations. Shell discovery and icon COM calls are not assumed cancellable: UI waits and queues are bounded, a timed-out worker opens its circuit, and the UI degrades to cached/empty results.
 - The UI thread only renders state and performs brief shell activation calls.
 - Icon extraction moves to a constrained worker process only if soak tests demonstrate COM hangs or unbounded memory growth.
 - Crash-loop protection disables auto-restart after three crashes within five minutes.
@@ -268,15 +271,14 @@ Perfect invocation is the hardest integration problem and must be solved in this
 
 | Priority | Approach | Risk | Decision |
 |---:|---|---|---|
-| 1 | `Win+Z` or another supported chord plus `EmberStart.exe --toggle` | Low | Ship in the first technical alpha |
+| 1 | A configurable supported chord (initial candidate `Ctrl+Alt+Space`) plus `EmberStart.exe --toggle` | Low | Ship in the first technical alpha; registration failure is nonfatal |
 | 2 | Propose an upstream RetroBar option to run a configured Start command | Low–medium | Preferred click-integration route |
-| 3 | Optional low-level handling of the bare Windows key in an isolated feature | Medium–high | Ship only if Gate G1 proves it reliable and fail-open |
-| 4 | Maintain a RetroBar fork | High maintenance | Avoid unless upstream integration is rejected and the user accepts the maintenance cost |
-| 5 | Replace RetroBar with our taskbar | Very high | Separate post-v1 program and gates |
+| 3 | Maintain a RetroBar fork | High maintenance | Avoid unless upstream integration is rejected and the user accepts the maintenance cost |
+| 4 | Replace RetroBar with our taskbar | Very high | Separate post-v1 program and gates |
 
-`RegisterHotKey` cannot be the basis for replacing the bare Windows key because Microsoft reserves Windows-key shortcuts for the operating system. A documented `WH_KEYBOARD_LL` low-level keyboard hook may be researched only as an off-by-default feature, but the hook callback must do no work beyond queueing an event, must preserve `Win+E`, `Win+L`, and every other OS shortcut, must not interact with the secure desktop, and must immediately disable itself after repeated failures. Standard-user, UAC, Smart App Control/application-control, fullscreen-game, and accessibility tests are mandatory before the feature can be offered. Source: [RegisterHotKey documentation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerhotkey).
+`RegisterHotKey` cannot be the basis for replacing the bare Windows key because Microsoft reserves Windows-key shortcuts for the operating system. No low-level keyboard hook is part of the approved v1 roadmap or Gates G1–G7. Any future hook research requires a new post-G7 owner scope decision, ADR, threat review, and decision gate; it cannot inherit approval from this plan. Source: [RegisterHotKey documentation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerhotkey).
 
-The v1 architecture is acceptable only if the user agrees that `Win+Z` is the temporary fallback when a clean RetroBar click integration is not yet available.
+The v1 architecture is acceptable only if the user agrees that a configurable supported chord is the temporary fallback when a clean RetroBar click integration is not yet available. `Win+Z` is not used because Windows 11 owns it for Snap Layouts. `Ctrl+Esc` remains the native Start fallback.
 
 ## 8. Comparable projects and lessons learned
 
@@ -326,20 +328,22 @@ Build disposable or minimal vertical spikes for:
 - Focus acquisition, outside-click dismissal, Escape, and foreground restoration.
 - `FOLDERID_AppsFolder` enumeration, localized names, icons, and Win32/packaged app launch.
 - Single-instance activation and current-user-only named-pipe IPC.
-- `Win+Z` activation and external `--toggle` command.
-- An experiment, not a commitment, for a clean RetroBar command integration or bare-Windows-key behavior.
+- A configurable supported activation chord (initial candidate `Ctrl+Alt+Space`) and external `--toggle` command. Registration failure must degrade to the command/native fallback without installing a hook.
+- An experiment for a clean RetroBar command integration. Bare-Windows-key behavior remains outside Phase 1 and requires a later separate gate.
 - An early MSIX/full-trust versus unpackaged activation spike. Prove a stable version-independent entry point—such as a registered protocol, execution alias, or package activation route—that RetroBar can call after package upgrades.
 
 **Deliverables:** Feasibility report, benchmark data, screenshots, API inventory, and updated ADRs.
 
-**Gate G1:** Technical feasibility and invocation.
+Use the minimal Phase 1 assembly boundary in [the feasibility specification](architecture/PHASE_1_FEASIBILITY_SPEC.md); defer the full production assembly split until the spike establishes real boundaries.
+
+**Gate G1:** Record G1a for supported hotkey/command launcher feasibility and G1b separately for verified RetroBar Start-button invocation. G1a alone authorizes only a hotkey-launcher preview.
 
 ### Phase 2 — Product and accessibility prototype (5 working days)
 
 Create two moodboards:
 
-1. **Authentic XP Zune:** more bevel, compact density, direct visual match to RetroBar.
-2. **Zune Fusion:** restrained dark chrome, larger typography, simpler layout.
+1. **Ember Classic:** more bevel, compact density, and a closer original visual conversation with RetroBar.
+2. **Ember Fusion:** restrained dark chrome, larger typography, and simpler layout.
 
 Produce static designs for home, All Apps, search, context menu, power, long text, high contrast, and two-monitor placement. Capture the installed RetroBar Zune theme and compare default, hover, pressed, focus, and inactive states side by side while using only original project-owned assets. Build a keyboard-operable prototype using fake catalog data.
 
@@ -438,8 +442,8 @@ Every gate produces an evidence packet: build hash, environment, automated resul
 
 | Gate | Pass criteria | If it fails |
 |---|---|---|
-| G0 — Charter/legal | User accepts Start-only v1, original assets, neutral product name, Explorer coexistence, and no universal window skinning | Redefine the product; do not code |
-| G1 — Feasibility/invocation | 1,000 toggles with no duplicate menu; supported hotkey and stable packaged/unpackaged activation route are reliable; 50 invocations per monitor have zero wrong-monitor opens; activation supplies source/monitor/anchor context; native Start fallback remains accessible; WPF meets initial latency/DPI targets. Stable-v1 status additionally requires verified RetroBar Start-button invocation; otherwise the build remains a hotkey-launcher preview. | Retain supported hotkey, redesign RetroBar integration, or stop the Start-replacement claim; reconsider framework only if evidence identifies WPF as the blocker |
+| G0 — Charter/legal | Owner ratifies all eight choices in the [G0 charter](decisions/GATE_G0_CHARTER.md), including distribution/license, Start-only v1, original assets, neutral name, Explorer/RetroBar coexistence, invocation fallback, local recency, power confirmation, and no universal window skinning | Redefine the product; do not code |
+| G1a/G1b — Feasibility/invocation | G1a: 1,000 activation cases with no duplicate menu; packaged and unpackaged candidates have recorded rehearsals and at least one ADR-006-selected stable route passes all required tests; simple hotkey/CLI activation uses resident-side foreground→pointer→primary placement and 50 invocations per monitor have zero wrong-monitor opens; `Ctrl+Esc` native Start remains accessible; WPF meets initial latency/DPI targets. G1b: the installed RetroBar Start button invokes the selected strict integrated entry point and supplies its fixed source/edge plus validated physical anchor context. Without G1b, the build remains a hotkey-launcher preview. | Retain the supported command/hotkey launcher, redesign RetroBar integration, or stop the Start-replacement claim; reconsider framework only if evidence identifies WPF as the blocker |
 | G2 — Design/accessibility | Owner approves one moodboard and side-by-side RetroBar state match; personal build: owner completes 5/5 journeys twice; public build: ≥23/25 unassisted completions across five fixed participants, with zero power-action errors; all five journeys pass keyboard and Narrator; normal text ≥4.5:1, non-text controls/focus ≥3:1, contrast themes pass, and no clipping at 200% text | Iterate before platform work expands |
 | G3 — Inventory/launch | At least 99% of the explicitly defined native All Apps denominator appears and launches on the target PC; duplicates <2%; icons/names correct; app install/uninstall reconciles without restart; below 95% is automatic no-go | Fix Shell catalog architecture before MVP features |
 | G4 — Internal alpha | Per-user `asInvoker`; no injection/system modification; forced termination leaves native Start usable; atomic config recovery; no admin prompt; all P0 unit/integration/UI tests pass | No external build |
@@ -535,13 +539,13 @@ Treat the following as untrusted:
 ### 12.2 Required controls
 
 - Runtime uses `asInvoker`; no service or scheduled task.
-- IPC instance and pipe names include user SID plus Windows session ID. The ACL permits only that interactive user SID, with protocol version, message-size cap, timeout, and rate limit; LocalSystem is not trusted by the normal UI channel.
+- IPC instance and pipe names include a SID-derived identifier plus Windows session ID. Explicit non-inheriting mutex/pipe ACLs permit only that interactive user SID; endpoints validate connected process SID, session, and integrity, and the protocol has a version, 4 KiB message cap, 500 ms I/O deadlines, queue bound, and rate limit. LocalSystem and elevated clients are not trusted by the normal UI channel.
 - Use Shell identities/PIDLs and argument-safe activation APIs; never concatenate a command line from catalog metadata or user input.
 - No arbitrary shell, PowerShell, or plug-in execution.
 - Theme input is declarative and schema-limited. Do not load arbitrary loose XAML because XAML can instantiate types and expand the attack surface.
 - Restrict DLL search paths and prefer packaged/read-only binaries.
 - Dependencies are pinned and scanned; release output includes an SBOM and third-party notices.
-- Logs exclude queries, arguments, file/document paths, app inventory, usernames, and window titles. Diagnostics are local, bounded, previewable, and user-clearable.
+- Logs exclude queries, arguments, file/document paths, app inventory, usernames, and window titles. Diagnostics are local, bounded, redacted, previewable, and user-clearable. Raw catalog ledgers and monitor captures are separate owner-controlled gate artifacts and are sanitized before any public commit or export.
 - Telemetry is off by default. Any future health telemetry requires a separate opt-in and published data dictionary.
 - Power and session actions use documented APIs and explicit labels. Never imitate a credential or UAC dialog.
 
@@ -603,11 +607,11 @@ Validate the supported stable build after every monthly Windows cumulative updat
 | Risk | Likelihood | Impact | Mitigation and trigger |
 |---|---|---:|---|
 | Windows update changes Start/focus behavior | High | High | Explorer coexistence, native fallback, monthly canary matrix; any native Start lockout pauses release |
-| Bare Windows key cannot be intercepted safely | High | Medium | Ship `Win+Z` and `--toggle`; keep `WH_KEYBOARD_LL` work off by default and separately gated; prefer upstream RetroBar command; reject Start-replacement claim if verified RetroBar click cannot ship |
+| Bare Windows key cannot be intercepted safely | High | Medium | Ship a configurable supported chord and stable command contracts; no hook exists in the approved v1 gates; preserve `Ctrl+Esc`; prefer upstream RetroBar integration; reject Start-replacement claim if verified RetroBar click cannot ship |
 | Mixed-DPI menu appears on wrong monitor or offset | High | High | Per-Monitor v2 manifest, physical/effective coordinate tests, negative-coordinate fixtures, mandatory hardware matrix |
 | Focus is stolen or menu immediately closes | Medium | High | Explicit focus state machine, foreground event tests, 1,000-cycle gate, Explorer-restart and fullscreen cases |
 | Packaged apps or Settings do not enumerate/launch | Medium | High | Shell AppsFolder vertical slice before MVP; ≥99% gate on real catalog |
-| Icon extraction hangs or leaks | Medium | Medium | Cancellation, timeouts, bounded cache; isolate worker only if profiling proves necessary |
+| Icon extraction hangs or leaks | Medium | Medium | Bound UI waits and queues, open a circuit on a wedged STA worker, use a bounded cache, and isolate a worker process only if profiling proves necessary; do not claim in-flight COM cancellation |
 | RetroBar update breaks click integration | Medium | Medium | Versioned external command, no dependency on internals, supported hotkey fallback |
 | Antivirus/SmartScreen reduces trust | Medium | High for public release | Consistent signing, SBOM, official distribution, no injection or self-modifying code |
 | Historical branding infringes IP | Medium | High | Original assets, neutral name, non-affiliation notice, license inventory, legal review before public launch |
@@ -622,8 +626,8 @@ Validate the supported stable build after every monthly Windows cumulative updat
 - **ADR-002: Explorer coexistence and Start-only v1.** Record prohibited injection/system modification techniques.
 - **ADR-003: Shell AppsFolder as catalog authority.** Record identity, icon, deduplication, and activation rules.
 - **ADR-004: Local-only, plugin-free MVP.** Record privacy, logging, search providers, and absence of network/update code.
-- **ADR-005: Invocation contract.** Define `--toggle`, current-user IPC, supported hotkey, native fallback, and RetroBar integration order.
-- **ADR-006: Packaging and stable activation choice.** Complete during Phase 1 after the MSIX versus WiX spike; record the version-independent invocation route and downgrade/roll-forward policy.
+- **ADR-005: Invocation contract.** Define `--toggle`, current-user/current-session IPC, configurable supported hotkey, `Ctrl+Esc` native fallback, and RetroBar integration order.
+- **ADR-006: Packaging and stable activation choice.** Complete during Phase 1 after comparing full-trust MSIX with the fixed unpackaged per-user launcher; record the selected version-independent route and downgrade/roll-forward policy. If unpackaged wins, WiX is a later packaging implementation for that proven route, not a third Phase 1 activation candidate.
 - **ADR-007: Optional taskbar architecture.** Create only after G7; decide ManagedShell dependency and recovery design.
 
 ## 17. Initial implementation backlog
@@ -637,7 +641,7 @@ Validate the supported stable build after every monthly Windows cumulative updat
 - `ES-005` Implement monitor selection, work-area anchoring, DPI changes, and negative coordinates.
 - `ES-006` Enumerate AppsFolder/Programs/CommonPrograms and normalize identities.
 - `ES-007` Extract/cache icons and launch Win32/packaged/Settings entries.
-- `ES-008` Implement `Win+Z` and native Start fallback.
+- `ES-008` Implement a configurable supported chord (initial candidate `Ctrl+Alt+Space`), nonfatal registration failure, and `Ctrl+Esc` native Start fallback.
 - `ES-009` Create Ember token dictionaries and fake-data home/search prototypes.
 - `ES-010` Build unit fixtures for geometry, catalog, search, settings, and IPC.
 
@@ -658,7 +662,7 @@ Validate the supported stable build after every monthly Windows cumulative updat
 - `ES-020` Mixed-DPI hardware matrix runner/checklist.
 - `ES-021` Fuzz/property tests for IPC, settings, search, and shortcuts.
 - `ES-022` Performance benchmarks and 24-hour soak harness.
-- `ES-023` Final packaging implementation, SBOM inputs, and downgrade/roll-forward rehearsal; the initial MSIX/WiX activation spike and ADR-006 belong to Phase 1/P0.
+- `ES-023` Final packaging implementation, SBOM inputs, and 100-cycle downgrade/roll-forward qualification. The initial MSIX-versus-fixed-unpackaged activation comparison and ADR-006 belong to Phase 1/P0; WiX may implement the selected unpackaged route later.
 - `ES-024` SBOM, dependency/license scanning, Authenticode verification, checksums.
 - `ES-025` Recovery command and 100-cycle install/update/rollback/uninstall test.
 - `ES-026` RetroBar configurable-command proposal or documented integration adapter.
@@ -715,26 +719,29 @@ Minimum practical council for a serious release:
 
 For a personal-only build, software tooling can be free: Visual Studio Community or compatible tooling, .NET SDK, GitHub, and local/Hyper-V test VMs. Public distribution may add certificate or store-account costs. Hardware coverage can begin with the owner PC and VMs, but stable public claims require at least one additional physical system because mixed-DPI, graphics, sleep, docking, and fullscreen behavior cannot be fully validated in a VM.
 
-## 21. Decisions the owner must make at Gate G0
+## 21. Decisions ratified at Gate G0
 
-1. **Distribution:** personal/private tool first, or intended public open-source release?
-2. **Visual direction:** Authentic XP Zune or Zune Fusion?
-3. **Scope:** confirm Start-only v1 while retaining RetroBar.
-4. **Invocation fallback:** accept `Win+Z` temporarily if clean RetroBar click integration is unavailable?
-5. **Name:** accept Ember Start as the neutral working name or choose another original name?
-6. **Recent apps:** allow local tracking only for launches performed through Ember Start?
-7. **Power confirmations:** keep restart/shut down confirmations enabled by default?
+On 2026-09-02 the owner approved:
 
-None of these decisions require changing Windows today. Coding begins only after G0 is recorded in the new repository.
+1. **Distribution:** public open-source development; personal/developer binaries until G6.
+2. **License:** Apache-2.0.
+3. **Visual direction:** Ember Fusion for Phase 1, compared with Ember Classic at G2.
+4. **Scope:** Start-only v1 while retaining RetroBar and Explorer.
+5. **Invocation fallback:** configurable supported chord, initial candidate `Ctrl+Alt+Space`, plus stable command forms; preserve `Ctrl+Esc` for native Start.
+6. **Name:** Ember Start.
+7. **Recent apps:** local tracking only for launches performed through Ember Start.
+8. **Power confirmations:** restart and shutdown confirmations enabled by default.
+
+The ratified decision record is [the G0 charter](decisions/GATE_G0_CHARTER.md). G0 authorizes the non-release Phase 1 feasibility implementation; later gates continue to control binaries and product claims.
 
 ## 22. Recommended immediate next step
 
 Do not start with the taskbar or system-wide theming. Create the clean Ember Start repository and run the one-week Phase 1 feasibility sprint. Its first demonstrator should do exactly four things:
 
-1. Open a black/orange WPF menu on the correct monitor through `Win+Z` and `--toggle`.
+1. Open a black/orange WPF menu on the correct monitor through a configurable supported chord and `--toggle`.
 2. Remain sharp and correctly anchored across the owner's two scale factors.
 3. Enumerate and launch both a traditional desktop app and a packaged Windows app.
 4. Exit or crash without affecting Explorer, RetroBar, or native Start.
 
-If that demonstrator passes G1, the project has retired its highest architectural risks before investing in the full visual design and feature set.
+If that demonstrator passes G1a, the project has retired its highest architectural risks before investing in the full visual design and feature set. It remains a hotkey-launcher preview until G1b proves the RetroBar Start-button route.
 
