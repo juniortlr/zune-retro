@@ -1,7 +1,7 @@
 # Zune-Inspired Windows Shell Project Plan
 
 **Working product name:** Ember Start  
-**Plan status:** Conditional planning baseline — owner ratification pending
+**Plan status:** Gate G0 passed — Phase 1 feasibility implementation authorized
 **Prepared:** 2026-08-31  
 **Target platform:** Windows 11 x64, beginning with the owner's dual-monitor AMD PC  
 **Product direction:** A safe, reversible Start-menu companion first; an optional custom taskbar only after a separate feasibility gate
@@ -719,18 +719,20 @@ Minimum practical council for a serious release:
 
 For a personal-only build, software tooling can be free: Visual Studio Community or compatible tooling, .NET SDK, GitHub, and local/Hyper-V test VMs. Public distribution may add certificate or store-account costs. Hardware coverage can begin with the owner PC and VMs, but stable public claims require at least one additional physical system because mixed-DPI, graphics, sleep, docking, and fullscreen behavior cannot be fully validated in a VM.
 
-## 21. Decisions the owner must make at Gate G0
+## 21. Decisions ratified at Gate G0
 
-1. **Distribution:** public-visible owner-only development, private development, or intended public open-source release?
-2. **License:** accept Apache-2.0, choose another license, or explicitly remain all rights reserved?
-3. **Visual direction:** Ember Classic or Ember Fusion?
-4. **Scope:** confirm Start-only v1 while retaining RetroBar and Explorer.
-5. **Invocation fallback:** accept a configurable supported chord (initial candidate `Ctrl+Alt+Space`) temporarily if clean RetroBar click integration is unavailable, while preserving `Ctrl+Esc` for native Start?
-6. **Name:** accept Ember Start as the neutral working name or choose another original name?
-7. **Recent apps:** allow local tracking only for launches performed through Ember Start?
-8. **Power confirmations:** keep restart/shut down confirmations enabled by default?
+On 2026-09-02 the owner approved:
 
-None of these decisions require changing Windows today. Coding begins only after all eight G0 decisions are recorded in the repository.
+1. **Distribution:** public open-source development; personal/developer binaries until G6.
+2. **License:** Apache-2.0.
+3. **Visual direction:** Ember Fusion for Phase 1, compared with Ember Classic at G2.
+4. **Scope:** Start-only v1 while retaining RetroBar and Explorer.
+5. **Invocation fallback:** configurable supported chord, initial candidate `Ctrl+Alt+Space`, plus stable command forms; preserve `Ctrl+Esc` for native Start.
+6. **Name:** Ember Start.
+7. **Recent apps:** local tracking only for launches performed through Ember Start.
+8. **Power confirmations:** restart and shutdown confirmations enabled by default.
+
+The ratified decision record is [the G0 charter](decisions/GATE_G0_CHARTER.md). G0 authorizes the non-release Phase 1 feasibility implementation; later gates continue to control binaries and product claims.
 
 ## 22. Recommended immediate next step
 

@@ -2,18 +2,18 @@
 
 **Prepared:** 2026-09-01
 
-**Status:** **CONDITIONAL GO — awaiting owner ratification**
+**Status:** **PASS — owner ratified the recommended decisions**
 
-**Permitted work:** Planning and architecture records only
+**Permitted work:** Phase 1 feasibility implementation and evidence collection
 
 **Not permitted by this gate:** Public binaries, stable-product claims, copied historical assets, Explorer replacement, or system modification
 
-## Recommended decisions for owner ratification
+## Ratified decisions
 
 | # | Decision | Recommended selection | Why |
 |---:|---|---|---|
-| 1 | Distribution | Public-visible, owner-only planning repository until the license decision; no external contributions or binaries | The current no-license repository is visible source under default copyright, not an open-source release. Phase 1 code begins only after G0. |
-| 2 | Source license | Council recommendation: Apache-2.0 | Provides a permissive license with an explicit patent grant and aligns with RetroBar, ManagedShell, and Cairo. No license has been applied yet. |
+| 1 | Distribution | Public open-source development; personal/developer binaries until G6 | Allows transparent development without presenting an unsigned feasibility build as a release. |
+| 2 | Source license | Apache-2.0 | Provides a permissive license with an explicit patent grant and aligns with RetroBar, ManagedShell, and Cairo. |
 | 3 | Visual direction | Ember Fusion for Phase 1; compare Ember Classic at G2 | Keeps the feasibility UI legible and original while preserving black/orange character without implying copied historical fidelity. |
 | 4 | Scope | Start-only v1; retain RetroBar and Explorer | Preserves a safe native recovery path and prevents taskbar scope from bypassing G7/G8. |
 | 5 | Invocation fallback | Configurable supported chord, initial candidate `Ctrl+Alt+Space`, plus `--toggle`; `Ctrl+Esc` opens native Start | `Win+Z` is owned by Windows 11 Snap Layouts. Runtime registration may still fail, so command and native fallbacks remain mandatory. |
@@ -37,22 +37,22 @@ This charter records eight decisions. License is separate from distribution beca
 
 ## Formal pass rule
 
-G0 becomes **PASS** only after the owner records acceptance of every decision above. If an open-source path is chosen, a `LICENSE` file matching the selected license must be committed before Phase 1 code. If the owner instead chooses all-rights-reserved development, that status must be explicit and contributions and public binaries remain blocked.
+G0 passed when the owner approved every decision above on 2026-09-02 and the Apache-2.0 `LICENSE` was added. This approval authorizes Phase 1 feasibility code, not public binaries, a stable-product claim, G1a/G1b, or the final G2 design.
 
 Owner ratification:
 
-- [ ] Distribution model accepted
-- [ ] License selected
-- [ ] Visual direction accepted
-- [ ] Start-only/Explorer/RetroBar scope accepted
-- [ ] Activation and native fallback accepted
-- [ ] Ember Start working name accepted
-- [ ] Local-only recency accepted
-- [ ] Power confirmations accepted
-- [ ] Non-negotiable constraints accepted
+- [x] Distribution model accepted
+- [x] License selected
+- [x] Visual direction accepted
+- [x] Start-only/Explorer/RetroBar scope accepted
+- [x] Activation and native fallback accepted
+- [x] Ember Start working name accepted
+- [x] Local-only recency accepted
+- [x] Power confirmations accepted
+- [x] Non-negotiable constraints accepted
 
-**Owner:** _pending_
+**Owner:** Project owner; approval recorded in the Codex project thread
 
-**Decision date:** _pending_
+**Decision date:** 2026-09-02
 
-**Gate result:** _pending_
+**Gate result:** **PASS**

@@ -4,7 +4,7 @@ A safe, reversible, Zune-inspired Start experience for Windows 11.
 
 ## Status
 
-Conditional planning baseline; owner ratification is pending at Gate G0. The first release is scoped as a per-user Start-menu companion that runs alongside Windows Explorer and RetroBar. A custom taskbar is a separately gated, post-v1 project.
+Gate G0 passed on 2026-09-02 and Phase 1 feasibility work is authorized. The first release is scoped as a per-user Start-menu companion that runs alongside Windows Explorer and RetroBar. A custom taskbar is a separately gated, post-v1 project.
 
 - [Council-reviewed implementation plan](docs/PROJECT_PLAN.md)
 - [Gate G0 owner decision record](docs/decisions/GATE_G0_CHARTER.md)
@@ -21,4 +21,4 @@ The project will not inject into Explorer, patch Windows system files, install a
 
 ## Repository roadmap
 
-Code will be added only after all eight Gate G0 decisions are ratified. Until a license is selected, this public-visible repository is not an open-source release and does not accept external contributions or distribute binaries. See the project plan for architecture, milestones, acceptance thresholds, testing, security, and rollback criteria.
+All eight Gate G0 decisions are ratified and the project is licensed under Apache-2.0. Phase 1 may now implement the non-release feasibility spike; public binaries remain blocked until the later release gates. See the project plan for architecture, milestones, acceptance thresholds, testing, security, and rollback criteria.
