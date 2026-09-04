@@ -1,13 +1,14 @@
 using EmberStart.Core.Activation;
 using EmberStart.Core.Instance;
 using EmberStart.Windows.Instance;
+using EmberStart.Windows.Security;
 
 namespace EmberStart.Windows.IntegrationTests.Instance;
 
 public sealed class SingleInstanceCoordinatorTests
 {
     [Fact]
-    public async Task Secondary_SendsRequestToPrimaryAndReceivesMatchingResponse()
+    public async Task Secondary_EnforcesCurrentProcessIntegrityPolicy()
     {
         var current = CurrentSessionIdentity.Create();
         var suffix = Guid.NewGuid().ToString("N");
@@ -29,9 +30,16 @@ public sealed class SingleInstanceCoordinatorTests
         var request = ActivationRequest.CreateSimple(
             ActivationCommand.Hide,
             ActivationSource.CommandLine);
-        var response = await secondary.SendAsync(request);
 
-        Assert.True(response.Accepted);
-        Assert.Equal(request.RequestId, response.RequestId);
+        if (ProcessIntegrityGuard.EvaluateCurrentProcess().MayBecomeResident)
+        {
+            var response = await secondary.SendAsync(request);
+            Assert.True(response.Accepted);
+            Assert.Equal(request.RequestId, response.RequestId);
+        }
+        else
+        {
+            await Assert.ThrowsAnyAsync<IOException>(() => secondary.SendAsync(request));
+        }
     }
 }
