@@ -4,16 +4,32 @@ A safe, reversible, Zune-inspired Start experience for Windows 11.
 
 ## Status
 
-Gate G0 passed on 2026-09-02 and Phase 1 feasibility work is authorized. The first release is scoped as a per-user Start-menu companion that runs alongside Windows Explorer and RetroBar. A custom taskbar is a separately gated, post-v1 project.
+Gate G0 passed on 2026-09-02 and Phase 1 feasibility work is in progress. The first release is scoped as a per-user Start-menu companion that runs alongside Windows Explorer and RetroBar. A custom taskbar is a separately gated, post-v1 project.
 
 - [Council-reviewed implementation plan](docs/PROJECT_PLAN.md)
 - [Gate G0 owner decision record](docs/decisions/GATE_G0_CHARTER.md)
 - [Phase 1 feasibility specification](docs/architecture/PHASE_1_FEASIBILITY_SPEC.md)
+- [Phase 1 foundation evidence](docs/evidence/phase1/FOUNDATION_STATUS.md)
 - [Visual and accessibility baseline](docs/design/VISUAL_ACCESSIBILITY_BASELINE.md)
 - [Final council validation](docs/council/2026-09-02-phase-0-round-3.md)
 - Target: Windows 11 x64, dual-monitor and mixed-DPI support
-- Proposed stack: C# / WPF / .NET 10 LTS
+- Stack: C# / WPF / .NET 10 LTS
 - Working product name: **Ember Start**
+
+The current foundation includes a runnable fake-data Ember Fusion window, strict activation commands, a provisional `Ctrl+Alt+Space` hotkey, current-user/session single-instance IPC, process-integrity checks, and physical-pixel placement policies. It is not yet a Start replacement and has not passed Gate G1.
+
+## Build and run
+
+Requirements: Windows 11 x64 and the .NET SDK selected by [`global.json`](global.json).
+
+```powershell
+dotnet restore EmberStart.slnx
+dotnet build EmberStart.slnx --configuration Debug --no-restore
+dotnet test EmberStart.slnx --configuration Debug --no-build --no-restore
+dotnet run --project src/EmberStart.App -- --toggle
+```
+
+While the resident is running, use `--show`, `--hide`, or `--toggle` from another process. `Ctrl+Alt+Space` is the provisional global hotkey; registration failure is nonfatal. `Ctrl+Esc` remains the native Windows Start fallback.
 
 ## Safety baseline
 

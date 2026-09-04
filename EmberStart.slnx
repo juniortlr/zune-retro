@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/EmberStart.App/EmberStart.App.csproj" />
+    <Project Path="src/EmberStart.Core/EmberStart.Core.csproj" />
+    <Project Path="src/EmberStart.Windows/EmberStart.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/EmberStart.Core.Tests/EmberStart.Core.Tests.csproj" />
+    <Project Path="tests/EmberStart.Windows.IntegrationTests/EmberStart.Windows.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

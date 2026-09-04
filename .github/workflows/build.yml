@@ -1,0 +1,36 @@
+name: build
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore EmberStart.slnx
+
+      - name: Verify formatting
+        run: dotnet format EmberStart.slnx --verify-no-changes --no-restore
+
+      - name: Build
+        run: dotnet build EmberStart.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test EmberStart.slnx --configuration Release --no-build --no-restore
