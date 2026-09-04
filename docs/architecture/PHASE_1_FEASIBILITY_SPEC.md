@@ -1,6 +1,6 @@
 # Phase 1 Feasibility Specification
 
-**Status:** Round 2 corrections applied; candidate for final council validation
+**Status:** Gate G0 ratified; Phase 1 implementation in progress
 
 **Timebox:** 5–7 working days after G0 owner ratification
 
