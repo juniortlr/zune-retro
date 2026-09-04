@@ -3,3 +3,16 @@ UnregisterHotKey
 GetNamedPipeClientProcessId
 GetNamedPipeServerProcessId
 AllowSetForegroundWindow
+BHID_EnumItems
+DestroyIcon
+FOLDERID_AppsFolder
+IEnumShellItems
+IShellItem
+IShellItem2
+PKEY_AppUserModel_ID
+SIGDN
+SHGetFileInfo
+SHGetKnownFolderItem
+SHParseDisplayName
+SHCreateItemFromParsingName
+ShellExecuteEx

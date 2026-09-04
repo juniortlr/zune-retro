@@ -10,13 +10,14 @@ Gate G0 passed on 2026-09-02 and Phase 1 feasibility work is in progress. The fi
 - [Gate G0 owner decision record](docs/decisions/GATE_G0_CHARTER.md)
 - [Phase 1 feasibility specification](docs/architecture/PHASE_1_FEASIBILITY_SPEC.md)
 - [Phase 1 foundation evidence](docs/evidence/phase1/FOUNDATION_STATUS.md)
+- [Shell catalog vertical-slice evidence](docs/evidence/phase1/CATALOG_VERTICAL_SLICE.md)
 - [Visual and accessibility baseline](docs/design/VISUAL_ACCESSIBILITY_BASELINE.md)
 - [Final council validation](docs/council/2026-09-02-phase-0-round-3.md)
 - Target: Windows 11 x64, dual-monitor and mixed-DPI support
 - Stack: C# / WPF / .NET 10 LTS
 - Working product name: **Ember Start**
 
-The current foundation includes a runnable fake-data Ember Fusion window, strict activation commands, a provisional `Ctrl+Alt+Space` hotkey, current-user/session single-instance IPC, process-integrity checks, and physical-pixel placement policies. It is not yet a Start replacement and has not passed Gate G1.
+The current Phase 1 branch includes a runnable Ember Fusion window backed by the Windows AppsFolder and Start Menu catalogs, asynchronous Shell icons, argument-free Shell identity activation, strict activation commands, a provisional `Ctrl+Alt+Space` hotkey, current-user/session single-instance IPC, process-integrity checks, and physical-pixel placement policies. It is not yet a Start replacement and has not passed Gate G1.
 
 ## Build and run
 

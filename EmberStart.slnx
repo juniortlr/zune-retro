@@ -6,6 +6,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/EmberStart.Core.Tests/EmberStart.Core.Tests.csproj" />
+    <Project Path="tests/EmberStart.LaunchFixture/EmberStart.LaunchFixture.csproj" />
     <Project Path="tests/EmberStart.Windows.IntegrationTests/EmberStart.Windows.IntegrationTests.csproj" />
   </Folder>
 </Solution>

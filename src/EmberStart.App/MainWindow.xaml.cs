@@ -1,9 +1,11 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using EmberStart.App.ViewModels;
 using EmberStart.Core.Activation;
 using EmberStart.Windows.Activation;
+using EmberStart.Windows.Catalog;
 using EmberStart.Windows.Display;
 
 namespace EmberStart.App;
@@ -12,7 +14,9 @@ public partial class MainWindow : Window, IDisposable
 {
     private readonly Action<ActivationRequest> _activationCallback;
     private readonly GlobalHotKeyRegistration _hotKey = new();
-    private readonly MainWindowViewModel _viewModel = new();
+    private readonly ShellAppService _shellApps = new();
+    private readonly CancellationTokenSource _lifetime = new();
+    private readonly MainWindowViewModel _viewModel;
     private HwndSource? _source;
     private nint _windowHandle;
     private bool _disposed;
@@ -21,8 +25,10 @@ public partial class MainWindow : Window, IDisposable
     {
         ArgumentNullException.ThrowIfNull(activationCallback);
         _activationCallback = activationCallback;
+        _viewModel = new MainWindowViewModel(_shellApps);
         DataContext = _viewModel;
         InitializeComponent();
+        Loaded += OnLoaded;
         Closed += OnClosed;
     }
 
@@ -70,8 +76,11 @@ public partial class MainWindow : Window, IDisposable
         }
 
         _disposed = true;
+        _lifetime.Cancel();
         _source?.RemoveHook(WindowProcedure);
         _hotKey.Dispose();
+        _shellApps.Dispose();
+        _lifetime.Dispose();
         GC.SuppressFinalize(this);
     }
 
@@ -101,16 +110,84 @@ public partial class MainWindow : Window, IDisposable
         return nint.Zero;
     }
 
-    private void OnPreviewKeyDown(object sender, KeyEventArgs eventArgs)
+    private async void OnPreviewKeyDown(object sender, KeyEventArgs eventArgs)
     {
         _ = sender;
-        if (eventArgs.Key != Key.Escape)
+        if (eventArgs.Key == Key.Escape)
+        {
+            Hide();
+            eventArgs.Handled = true;
+            return;
+        }
+
+        if (eventArgs.Key == Key.Down && SearchBox.IsKeyboardFocusWithin && ResultsList.Items.Count > 0)
+        {
+            ResultsList.SelectedIndex = 0;
+            ResultsList.Focus();
+            eventArgs.Handled = true;
+            return;
+        }
+
+        if (eventArgs.Key != Key.Enter ||
+            (!SearchBox.IsKeyboardFocusWithin && !ResultsList.IsKeyboardFocusWithin) ||
+            ResultsList.Items.Count == 0)
         {
             return;
         }
 
-        Hide();
+        if (ResultsList.SelectedItem is null)
+        {
+            ResultsList.SelectedIndex = 0;
+        }
+
         eventArgs.Handled = true;
+        await LaunchSelectedAsync();
+    }
+
+    private async void OnLoaded(object sender, RoutedEventArgs eventArgs)
+    {
+        _ = sender;
+        _ = eventArgs;
+
+        try
+        {
+            await _viewModel.InitializeAsync(_lifetime.Token);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
+    }
+
+    private async void OnResultsMouseDoubleClick(object sender, MouseButtonEventArgs eventArgs)
+    {
+        _ = sender;
+        if (eventArgs.OriginalSource is not DependencyObject source ||
+            ItemsControl.ContainerFromElement(ResultsList, source) is not ListBoxItem)
+        {
+            return;
+        }
+
+        eventArgs.Handled = true;
+        await LaunchSelectedAsync();
+    }
+
+    private async Task LaunchSelectedAsync()
+    {
+        if (ResultsList.SelectedItem is not CatalogItemViewModel item)
+        {
+            return;
+        }
+
+        try
+        {
+            if (await _viewModel.LaunchAsync(item, _windowHandle, _lifetime.Token))
+            {
+                Hide();
+            }
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
     }
 
     private void OnDeactivated(object? sender, EventArgs eventArgs)

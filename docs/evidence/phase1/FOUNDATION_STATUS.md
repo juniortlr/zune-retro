@@ -1,5 +1,7 @@
 # Phase 1 Foundation Status
 
+> This is the foundation checkpoint captured before Shell catalog work. Continued evidence is recorded in [CATALOG_VERTICAL_SLICE.md](CATALOG_VERTICAL_SLICE.md).
+
 **Recorded:** 2026-09-04
 
 **Branch:** `codex/phase-1-foundation`

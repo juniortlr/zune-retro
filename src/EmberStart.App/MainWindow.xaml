@@ -39,7 +39,7 @@
                 <Border Grid.Column="0" Background="{StaticResource AccentBrush}" CornerRadius="2" />
                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                     <TextBlock Text="EMBER START" FontSize="20" FontWeight="SemiBold" />
-                    <TextBlock Text="PHASE 1 · NON-RELEASE FOUNDATION"
+                    <TextBlock Text="PHASE 1 · SHELL CATALOG PREVIEW"
                                Foreground="{StaticResource TextSecondaryBrush}"
                                FontSize="12" />
                 </StackPanel>
@@ -61,6 +61,7 @@
                      ItemContainerStyle="{StaticResource EmberListItem}"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     MouseDoubleClick="OnResultsMouseDoubleClick"
                      automation:AutomationProperties.Name="Installed apps">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
@@ -74,7 +75,7 @@
                             <Border Grid.Column="1"
                                     Width="28"
                                     Height="28"
-                                    Margin="8,0"
+                                    Margin="6,0"
                                     Background="{StaticResource SurfaceRaisedBrush}"
                                     CornerRadius="2">
                                 <TextBlock Text="•"
@@ -83,6 +84,12 @@
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center" />
                             </Border>
+                            <Image Grid.Column="1"
+                                   Width="28"
+                                   Height="28"
+                                   Margin="6,0"
+                                   Source="{Binding Icon}"
+                                   Stretch="Uniform" />
                             <TextBlock Grid.Column="2"
                                        Text="{Binding DisplayName}"
                                        VerticalAlignment="Center"
