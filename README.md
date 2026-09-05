@@ -9,6 +9,7 @@ Gate G0 passed on 2026-09-02 and Phase 1 feasibility work is in progress. The fi
 - [Council-reviewed implementation plan](docs/PROJECT_PLAN.md)
 - [Gate G0 owner decision record](docs/decisions/GATE_G0_CHARTER.md)
 - [Phase 1 feasibility specification](docs/architecture/PHASE_1_FEASIBILITY_SPEC.md)
+- [Phase 1 evil-driven execution plan](docs/architecture/PHASE_1_EVIL_DRIVEN_EXECUTION.md)
 - [Phase 1 foundation evidence](docs/evidence/phase1/FOUNDATION_STATUS.md)
 - [Shell catalog vertical-slice evidence](docs/evidence/phase1/CATALOG_VERTICAL_SLICE.md)
 - [Visual and accessibility baseline](docs/design/VISUAL_ACCESSIBILITY_BASELINE.md)

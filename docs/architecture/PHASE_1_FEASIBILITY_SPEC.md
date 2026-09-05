@@ -6,6 +6,8 @@
 
 **Goal:** Determine whether a safe WPF launcher can meet the activation, placement, Shell-catalog, focus, accessibility-skeleton, and stable-entry-point requirements.
 
+The 2026-09-04 architecture challenge keeps this specification authoritative while changing the execution order to adversarial, test-first slices. See [PHASE_1_EVIL_DRIVEN_EXECUTION.md](PHASE_1_EVIL_DRIVEN_EXECUTION.md). Gate G1 remains **ITERATE**.
+
 ## Scope boundary
 
 Phase 1 proves technology; it does not build the complete Start product. Pins, usage ranking, real power actions, daily-use startup, updater logic, polished themes, a bare-Windows-key hook, and taskbar behavior are out of scope. Phase 1 code begins only after G0 passes.
