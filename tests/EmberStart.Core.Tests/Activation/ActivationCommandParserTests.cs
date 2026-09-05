@@ -72,4 +72,22 @@ public sealed class ActivationCommandParserTests
         Assert.False(result.Success);
         Assert.Contains("positive", result.Error, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("999")]
+    [InlineData("-1")]
+    [InlineData("Bottom, Left")]
+    public void Parse_RejectsNumericOrCompositeEdges(string edge)
+    {
+        string[] arguments =
+        [
+            "--integrated-toggle-v1", "--source", "retrobar",
+            "--anchor-left", "-1920", "--anchor-top", "1040",
+            "--anchor-right", "-1840", "--anchor-bottom", "1080",
+            "--taskbar-edge", edge,
+        ];
+
+        Assert.False(ActivationCommandParser.Parse(arguments).Success);
+    }
 }

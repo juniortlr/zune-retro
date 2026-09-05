@@ -10,6 +10,8 @@ Gate G0 passed on 2026-09-02 and Phase 1 feasibility work is in progress. The fi
 - [Gate G0 owner decision record](docs/decisions/GATE_G0_CHARTER.md)
 - [Phase 1 feasibility specification](docs/architecture/PHASE_1_FEASIBILITY_SPEC.md)
 - [Phase 1 evil-driven execution plan](docs/architecture/PHASE_1_EVIL_DRIVEN_EXECUTION.md)
+- [Reviewed Hermes handoff and gate status](DG_EVIDENCE_PACKET.md)
+- [EDD-03 listener recovery evidence](docs/evidence/phase1/EDD03_LISTENER_RECOVERY.md)
 - [Phase 1 foundation evidence](docs/evidence/phase1/FOUNDATION_STATUS.md)
 - [Shell catalog vertical-slice evidence](docs/evidence/phase1/CATALOG_VERTICAL_SLICE.md)
 - [Visual and accessibility baseline](docs/design/VISUAL_ACCESSIBILITY_BASELINE.md)
@@ -19,6 +21,8 @@ Gate G0 passed on 2026-09-02 and Phase 1 feasibility work is in progress. The fi
 - Working product name: **Ember Start**
 
 The current Phase 1 branch includes a runnable Ember Fusion window backed by the Windows AppsFolder and Start Menu catalogs, asynchronous Shell icons, argument-free Shell identity activation, strict activation commands, a provisional `Ctrl+Alt+Space` hotkey, current-user/session single-instance IPC, process-integrity checks, and physical-pixel placement policies. It is not yet a Start replacement and has not passed Gate G1.
+
+The Hermes handoff has been reviewed: earlier DG-1/DG-2 GO claims are superseded by ITERATE, and G1b awaits reproducible installed-route evidence. IPC now validates a strict wire schema and recovers from malformed/stalled clients and handler failures. Explicit ACLs, full peer validation, admission control, and process/window qualification remain open.
 
 ## Build and run
 

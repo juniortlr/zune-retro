@@ -1,3 +1,5 @@
+// ARCHIVED HERMES DRAFT — not compiled and not cold-start, HWND, ordering, or spoofing evidence.
+// Review 2026-09-05: fake server binds no pipe; no process/window measurement; sorted-order assertion is tautological.
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;

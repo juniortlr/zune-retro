@@ -18,6 +18,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _statusText = "Loading installed apps…";
     private ShellCatalogStatus? _catalogStatus;
     private bool _hotKeyUnavailable;
+    private bool _activationUnavailable;
     private bool _initialized;
 
     public MainWindowViewModel(ShellAppService shellApps)
@@ -74,6 +75,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public void ReportHotKeyUnavailable()
     {
         _hotKeyUnavailable = true;
+        RefreshStatus();
+    }
+
+    public void ReportActivationUnavailable()
+    {
+        _activationUnavailable = true;
         RefreshStatus();
     }
 
@@ -138,6 +145,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         StatusText = _hotKeyUnavailable
             ? $"{catalogText} · Ctrl+Alt+Space unavailable"
             : catalogText;
+        if (_activationUnavailable)
+        {
+            StatusText += " · Activation unavailable; native Start: Ctrl+Esc";
+        }
     }
 
     private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

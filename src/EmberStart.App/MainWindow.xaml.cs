@@ -68,6 +68,8 @@ public partial class MainWindow : Window, IDisposable
         Keyboard.Focus(SearchBox);
     }
 
+    public void ReportActivationUnavailable() => _viewModel.ReportActivationUnavailable();
+
     public void Dispose()
     {
         if (_disposed)

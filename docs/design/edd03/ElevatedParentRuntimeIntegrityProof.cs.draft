@@ -1,3 +1,5 @@
+// ARCHIVED HERMES DRAFT — not compiled and not elevated-parent runtime evidence.
+// Review 2026-09-05: no elevated child launch or pipe inspection; one assertion incorrectly rejects standard-user hosts.
 using System.ComponentModel;
 using System.Security.Principal;
 using EmberStart.Windows.Security;

@@ -52,6 +52,13 @@ public partial class App : Application, IDisposable
         _menu.InitializeNativeWindow();
         _coordinator.StartListening(HandlePipeActivationAsync);
         _menu.ApplyActivation(parsed.Request!);
+
+        // Observe terminal listener health throughout the resident lifetime.
+        await _coordinator.ListenerCompletion.ConfigureAwait(true);
+        if (_coordinator?.ListenerHealth == ActivationListenerHealth.Faulted)
+        {
+            _menu?.ReportActivationUnavailable();
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)

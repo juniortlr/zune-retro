@@ -62,7 +62,9 @@ public static class ActivationCommandParser
             return ActivationParseResult.Rejected("Anchor coordinates must be signed 32-bit integers.");
         }
 
-        if (!Enum.TryParse<TaskbarEdge>(arguments[12], ignoreCase: true, out var edge))
+        if (!Enum.TryParse<TaskbarEdge>(arguments[12], ignoreCase: true, out var edge) ||
+            !Enum.IsDefined(edge) ||
+            !string.Equals(arguments[12], edge.ToString(), StringComparison.OrdinalIgnoreCase))
         {
             return ActivationParseResult.Rejected("Taskbar edge must be left, top, right, or bottom.");
         }
