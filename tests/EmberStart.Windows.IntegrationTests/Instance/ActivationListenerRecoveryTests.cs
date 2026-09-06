@@ -131,7 +131,7 @@ public sealed class ActivationListenerRecoveryTests
         Assert.Equal(ActivationListenerHealth.Listening, primary.ListenerHealth);
     }
 
-    [Fact]
+    [StandardUserFact]
     public void Listener_ReportsPipeCreationFailure_WithoutRetryLoop()
     {
         var identity = CreateIdentity();
@@ -145,7 +145,7 @@ public sealed class ActivationListenerRecoveryTests
         Assert.Equal(ActivationListenerHealth.Faulted, primary.ListenerHealth);
     }
 
-    [Fact]
+    [StandardUserFact]
     public async Task Dispose_StopsWaitingListener_AndIsIdempotent()
     {
         using var primary = SingleInstanceCoordinator.Create(CreateIdentity());

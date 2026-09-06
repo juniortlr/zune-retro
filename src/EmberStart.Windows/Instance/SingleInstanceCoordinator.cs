@@ -1,7 +1,9 @@
 using System.IO.Pipes;
 using System.ComponentModel;
 using System.Security.Principal;
+using System.Threading.Channels;
 using EmberStart.Core.Activation;
+using EmberStart.Windows.Security;
 
 namespace EmberStart.Windows.Instance;
 
@@ -11,6 +13,12 @@ public sealed class SingleInstanceCoordinator : IDisposable
     private readonly Mutex _mutex;
     private readonly CancellationTokenSource _shutdown = new();
     private readonly bool _createdMutex;
+    private const int MaximumConnections = 64;
+    private readonly string _expectedServerImage;
+    private readonly TaskCompletionSource<bool> _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly ActivationAdmissionLimiter _admission = new(TimeProvider.System);
+    private readonly Channel<ActivationWork> _requests = Channel.CreateBounded<ActivationWork>(
+        new BoundedChannelOptions(32) { SingleReader = true, FullMode = BoundedChannelFullMode.Wait });
     private Task? _listener;
     private Task<ActivationResponse>? _handlerTask;
     private int _listenerHealth;
@@ -20,11 +28,13 @@ public sealed class SingleInstanceCoordinator : IDisposable
     private SingleInstanceCoordinator(
         CurrentSessionIdentity identity,
         Mutex mutex,
-        bool createdMutex)
+        bool createdMutex,
+        string expectedServerImage)
     {
         _identity = identity;
         _mutex = mutex;
         _createdMutex = createdMutex;
+        _expectedServerImage = expectedServerImage;
     }
 
     public bool IsPrimary => _createdMutex;
@@ -34,17 +44,25 @@ public sealed class SingleInstanceCoordinator : IDisposable
 
     public Task ListenerCompletion => _listener ?? Task.CompletedTask;
 
+    public Task<bool> Ready => _ready.Task;
+
     public long RejectedConnections => Interlocked.Read(ref _rejectedConnections);
 
     public static SingleInstanceCoordinator Create(CurrentSessionIdentity identity)
     {
         ArgumentNullException.ThrowIfNull(identity);
-        var mutex = new Mutex(
-            initiallyOwned: false,
-            identity.Names.MutexName,
-            out var createdNew);
+        var actual = CurrentSessionIdentity.Create();
+        if (identity.UserSid != actual.UserSid || identity.SessionId != actual.SessionId ||
+            !ProcessIntegrityGuard.EvaluateCurrentProcess().MayBecomeResident)
+        {
+            throw new UnauthorizedAccessException("Activation requires the current medium-integrity user/session.");
+        }
 
-        return new SingleInstanceCoordinator(identity, mutex, createdNew);
+        var expectedImage = Environment.ProcessPath
+            ?? throw new InvalidOperationException("The current executable identity is unavailable.");
+        var mutex = NamedObjectSecurity.CreateMutex(identity, out var createdNew);
+
+        return new SingleInstanceCoordinator(identity, mutex, createdNew, expectedImage);
     }
 
     public void StartListening(Func<ActivationRequest, CancellationToken, Task<ActivationResponse>> handler)
@@ -65,15 +83,18 @@ public sealed class SingleInstanceCoordinator : IDisposable
         try
         {
             // Publish Listening only after the first pipe has actually been created.
-            var server = CreateServer();
+            var server = CreateServer(first: true);
             SetHealth(ActivationListenerHealth.Listening);
-            _listener = ListenAsync(server, handler, _shutdown.Token);
+            var shutdownToken = _shutdown.Token;
+            _listener = Task.Run(() => ListenAsync(server, handler, shutdownToken));
+            _ready.TrySetResult(true);
         }
         catch (Exception exception) when (IsRecoverableFailure(exception))
         {
             // Object creation faults are terminal, not a tight retry loop against a squatted pipe.
             SetHealth(ActivationListenerHealth.Faulted);
             _listener = Task.CompletedTask;
+            _ready.TrySetResult(false);
         }
     }
 
@@ -95,9 +116,9 @@ public sealed class SingleInstanceCoordinator : IDisposable
         timeout.CancelAfter(ActivationPipeProtocol.OperationTimeout);
         await client.ConnectAsync(timeout.Token).ConfigureAwait(false);
 
-        if (!PipePeerValidator.IsServerInSession(client, _identity.SessionId))
+        if (!PipePeerValidator.IsServerAllowed(client, _identity, _expectedServerImage))
         {
-            throw new UnauthorizedAccessException("The activation server is in another Windows session.");
+            throw new UnauthorizedAccessException("The activation server identity is not trusted.");
         }
 
         await ActivationPipeProtocol.WriteRequestAsync(client, request, cancellationToken).ConfigureAwait(false);
@@ -118,7 +139,9 @@ public sealed class SingleInstanceCoordinator : IDisposable
         }
 
         _disposed = true;
+        _ready.TrySetResult(false);
         _shutdown.Cancel();
+        _requests.Writer.TryComplete();
 
         try
         {
@@ -129,6 +152,20 @@ public sealed class SingleInstanceCoordinator : IDisposable
         {
         }
 
+        if (_listener is { IsCompleted: false })
+        {
+            // Preserve the namespace and cancellation source until all pipe workers have stopped.
+            _ = _listener.ContinueWith(_ => DisposeResources(), CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        }
+        else
+        {
+            DisposeResources();
+        }
+    }
+
+    private void DisposeResources()
+    {
         _mutex.Dispose();
         _shutdown.Dispose();
     }
@@ -138,31 +175,37 @@ public sealed class SingleInstanceCoordinator : IDisposable
         Func<ActivationRequest, CancellationToken, Task<ActivationResponse>> handler,
         CancellationToken cancellationToken)
     {
+        var connections = new List<Task>();
+        var consumer = ProcessRequestsAsync(handler, cancellationToken);
         try
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                using (server)
+                try
                 {
-                    try
-                    {
-                        await server.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
-                        await HandleConnectionAsync(server, handler, cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    catch (Exception exception) when (IsConnectionFailure(exception))
-                    {
-                        // A peer's decode/read/write/impersonation failure belongs to this connection only.
-                        Interlocked.Increment(ref _rejectedConnections);
-                    }
+                    await server.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
                 }
-
-                if (!cancellationToken.IsCancellationRequested)
+                catch (IOException) when (!cancellationToken.IsCancellationRequested)
                 {
-                    server = CreateServer();
+                    var failed = server;
+                    server = CreateServer(first: false);
+                    failed.Dispose();
+                    Interlocked.Increment(ref _rejectedConnections);
+                    continue;
+                }
+                connections.RemoveAll(task => task.IsCompleted);
+                var connected = server;
+                // Reserve the next instance before releasing the accepted handle. The pipe name
+                // stays continuously owned, and FirstPipeInstance applies only to the first handle.
+                server = CreateServer(first: false);
+                if (connections.Count >= MaximumConnections)
+                {
+                    connected.Dispose();
+                    Interlocked.Increment(ref _rejectedConnections);
+                }
+                else
+                {
+                    connections.Add(ServeConnectionAsync(connected, cancellationToken));
                 }
             }
         }
@@ -176,6 +219,10 @@ public sealed class SingleInstanceCoordinator : IDisposable
         finally
         {
             server.Dispose();
+            _shutdown.Cancel();
+            _requests.Writer.TryComplete();
+            await Task.WhenAll(connections).ConfigureAwait(false);
+            await consumer.ConfigureAwait(false);
             if (ListenerHealth != ActivationListenerHealth.Faulted)
             {
                 SetHealth(ActivationListenerHealth.Stopped);
@@ -183,20 +230,105 @@ public sealed class SingleInstanceCoordinator : IDisposable
         }
     }
 
-    private async Task HandleConnectionAsync(
+    private async Task ServeConnectionAsync(
         NamedPipeServerStream server,
+        CancellationToken cancellationToken)
+    {
+        using (server)
+        {
+            try
+            {
+                // Impersonation validates the security context of the last pipe read. Bound the
+                // frame before impersonating; unauthenticated peers never reach the work queue.
+                var request = await ActivationPipeProtocol.ReadRequestAsync(server, cancellationToken).ConfigureAwait(false);
+                if (!PipePeerValidator.TryValidateClient(server, _identity, out var peer))
+                {
+                    Interlocked.Increment(ref _rejectedConnections);
+                    return;
+                }
+
+                var admitted = _admission.TryAdmit(peer!);
+                using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                deadline.CancelAfter(ActivationPipeProtocol.OperationTimeout);
+                var completion = new TaskCompletionSource<ActivationResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+                ActivationResponse response;
+                if (!admitted)
+                {
+                    response = new ActivationResponse(request.RequestId, false, "RateLimited");
+                }
+                else if (!_requests.Writer.TryWrite(new ActivationWork(request, completion, deadline.Token)))
+                {
+                    response = new ActivationResponse(request.RequestId, false, "Busy");
+                }
+                else
+                {
+                    try
+                    {
+                        response = await completion.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        response = new ActivationResponse(request.RequestId, false, "HandlerTimedOut");
+                    }
+                }
+
+                await ActivationPipeProtocol.WriteResponseAsync(server, response, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+            }
+            catch (Exception exception) when (IsConnectionFailure(exception))
+            {
+                Interlocked.Increment(ref _rejectedConnections);
+            }
+            catch (Exception exception) when (IsRecoverableFailure(exception))
+            {
+                SetHealth(ActivationListenerHealth.Faulted);
+                _shutdown.Cancel();
+            }
+        }
+    }
+
+    private async Task ProcessRequestsAsync(
         Func<ActivationRequest, CancellationToken, Task<ActivationResponse>> handler,
         CancellationToken cancellationToken)
     {
-        if (!PipePeerValidator.IsClientAllowed(server, _identity.UserSid, _identity.SessionId))
+        try
         {
-            Interlocked.Increment(ref _rejectedConnections);
-            return;
-        }
+            await foreach (var work in _requests.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            {
+                if (work.CancellationToken.IsCancellationRequested)
+                {
+                    work.Completion.TrySetCanceled(work.CancellationToken);
+                    continue;
+                }
 
-        var request = await ActivationPipeProtocol.ReadRequestAsync(server, cancellationToken).ConfigureAwait(false);
-        var response = await InvokeHandlerAsync(request, handler, cancellationToken).ConfigureAwait(false);
-        await ActivationPipeProtocol.WriteResponseAsync(server, response, cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    work.Completion.TrySetResult(await InvokeHandlerAsync(work.Request, handler, work.CancellationToken)
+                        .ConfigureAwait(false));
+                }
+                catch (OperationCanceledException) when (work.CancellationToken.IsCancellationRequested)
+                {
+                    work.Completion.TrySetCanceled(work.CancellationToken);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception) when (IsRecoverableFailure(exception))
+        {
+            SetHealth(ActivationListenerHealth.Faulted);
+            _shutdown.Cancel();
+        }
+        finally
+        {
+            while (_requests.Reader.TryRead(out var pending))
+            {
+                pending.Completion.TrySetCanceled(cancellationToken);
+            }
+        }
     }
 
     private async Task<ActivationResponse> InvokeHandlerAsync(
@@ -257,12 +389,15 @@ public sealed class SingleInstanceCoordinator : IDisposable
     private static bool IsRecoverableFailure(Exception exception) =>
         exception is not (OutOfMemoryException or AccessViolationException);
 
-    private NamedPipeServerStream CreateServer() => new(
+    private NamedPipeServerStream CreateServer(bool first) => new(
         _identity.Names.PipeName,
         PipeDirection.InOut,
         maxNumberOfServerInstances: 1,
         PipeTransmissionMode.Byte,
-        PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly | PipeOptions.FirstPipeInstance,
+        PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly | (first ? PipeOptions.FirstPipeInstance : PipeOptions.None),
         inBufferSize: ActivationPipeProtocol.MaximumMessageBytes,
         outBufferSize: ActivationPipeProtocol.MaximumMessageBytes);
+
+    private sealed record ActivationWork(ActivationRequest Request, TaskCompletionSource<ActivationResponse> Completion,
+        CancellationToken CancellationToken);
 }

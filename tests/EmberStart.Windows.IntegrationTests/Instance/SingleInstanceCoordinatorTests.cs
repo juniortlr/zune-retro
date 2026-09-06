@@ -19,6 +19,12 @@ public sealed class SingleInstanceCoordinatorTests
                 $"EmberStart.Tests.{suffix}"),
         };
 
+        if (!ProcessIntegrityGuard.EvaluateCurrentProcess().MayBecomeResident)
+        {
+            Assert.Throws<UnauthorizedAccessException>(() => SingleInstanceCoordinator.Create(identity));
+            return;
+        }
+
         using var primary = SingleInstanceCoordinator.Create(identity);
         Assert.True(primary.IsPrimary);
         primary.StartListening((request, _) =>
@@ -31,15 +37,8 @@ public sealed class SingleInstanceCoordinatorTests
             ActivationCommand.Hide,
             ActivationSource.CommandLine);
 
-        if (ProcessIntegrityGuard.EvaluateCurrentProcess().MayBecomeResident)
-        {
-            var response = await secondary.SendAsync(request);
-            Assert.True(response.Accepted);
-            Assert.Equal(request.RequestId, response.RequestId);
-        }
-        else
-        {
-            await Assert.ThrowsAnyAsync<IOException>(() => secondary.SendAsync(request));
-        }
+        var response = await secondary.SendAsync(request);
+        Assert.True(response.Accepted);
+        Assert.Equal(request.RequestId, response.RequestId);
     }
 }

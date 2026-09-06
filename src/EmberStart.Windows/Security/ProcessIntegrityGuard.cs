@@ -49,16 +49,14 @@ public static partial class ProcessIntegrityGuard
             var ridOffset = checked(8 + ((subAuthorityCount - 1) * sizeof(uint)));
             var rid = Marshal.ReadInt32(sid, ridOffset);
             var level = MapRid(rid);
-            var allowed = level is ProcessIntegrityLevel.Untrusted or
-                ProcessIntegrityLevel.Low or
-                ProcessIntegrityLevel.Medium;
+            var allowed = level == ProcessIntegrityLevel.Medium;
 
             return new IntegrityDecision(
                 allowed,
                 level,
                 allowed
                     ? $"Integrity level {level} is allowed."
-                    : "Ember Start will not remain resident above medium integrity. Launch it normally from Explorer.");
+                    : "Ember Start requires medium integrity. Launch it normally from Explorer.");
         }
         finally
         {
