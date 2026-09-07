@@ -1,4 +1,13 @@
 # G1a Qualification — 1-Hour Plan (before astra back)
+
+## Errata — primary review, 2026-09-06
+
+This historical plan is not execution evidence. Its unsupported 20–30 cases/hour and 35–50-hour estimates are withdrawn pending a timed automated pilot. The authoritative 1,000-activation campaign includes the specified `50 × monitor_count` placement subset; on two monitors it is not 1,100 scored activations. The proposed subset below mixes batches and individual events and must not be used as a measured count. No complete raw per-case ledger was supplied.
+
+The next campaign work is a controlled executable pilot after IPC repair and architecture review, with exact case identities, outcomes, process/window counts, build identity, and measured duration. See [the reviewed R1–R4 sequence](../../council/2026-09-06-open-model-review-and-next-task.md). G1a remains not qualified.
+
+## Original plan — historical, superseded by the corrections above
+
 Recorded: 2026-09-06 (same session). DG rules: DG-1 ITERATE, G1a NOT DECLARED, EDD-03/04 deferred.
 User directed: "Run G1a qualification protocol check — run 1000 cases or more even :)"
 Reality check (evidence-based, not fabricated):

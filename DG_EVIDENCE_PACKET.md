@@ -1,5 +1,11 @@
 # Phase 1 Decision-Gate Evidence Status — Reviewed 2026-09-05
 
+## Continuation — 2026-09-06
+
+R1 repaired the EDD-04 pipe-factory regression and R2 added dated errata to the open-model reports. The final required-mode local suite passes **85/85**, with five additional nine-test listener/security regression runs passing. See [R1/R2 evidence and limitations](docs/evidence/phase1/R1_PIPE_FACTORY_REPAIR.md) and the [pre-repair independent review](docs/council/2026-09-06-open-model-review-and-next-task.md). This supersedes the EDD-04 implementation status below: explicit pipe security/read-back and overlapping replacement are now exercised, while complete identity/readiness/recovery/admission qualification remains pending. It does not upgrade any project gate. The older review below remains historical context; G1a reports lack a verified case ledger.
+
+## Original review — historical context
+
 Branch: `codex/phase-1-foundation`
 
 Provenance under review: commits `8511280`, `2859321`, and `92ff5f0`, plus the uncommitted Hermes handoff drafts. The earlier packet recorded runtime `thinkingmachines/inkling-small:free (openrouter)` and claimed DG-1 GO, DG-2 verification, and a user-verified RetroBar result. This review preserves those statements as provenance; it does not adopt them as evidence-backed decisions.

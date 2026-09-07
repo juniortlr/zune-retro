@@ -44,7 +44,7 @@ internal static partial class NamedObjectSecurity
         var pipe = NamedPipeServerStreamAcl.Create(identity.Names.PipeName, PipeDirection.InOut,
             instances, PipeTransmissionMode.Byte, options,
             ActivationPipeProtocol.MaximumMessageBytes, ActivationPipeProtocol.MaximumMessageBytes,
-            security, HandleInheritability.None, PipeAccessRights.ReadPermissions);
+            security, HandleInheritability.None, (PipeAccessRights)0);
         try
         {
             Validate(pipe.GetAccessControl(), sid, (int)PipeAccessRights.FullControl);

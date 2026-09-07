@@ -1,5 +1,18 @@
 # EDD-04 Evidence — Reverted (2026-09-06)
 
+## Errata — primary review, 2026-09-06
+
+The original report below is preserved as historical, partly incorrect/unverified provenance; it is not the current acceptance record. See [independent review](../../council/2026-09-06-open-model-review-and-next-task.md) and [R1 repair evidence](R1_PIPE_FACTORY_REPAIR.md).
+
+- The actual submission is `99b4b68`, whose parent is `1c097ed`, not `92ff5f0`. It tracks the production draft and test files described below as uncommitted. It is not test-only.
+- Fresh required-mode Release builds reproduce 68/68 passing tests at `1c097ed` and 78/82 passing tests at `99b4b68`. The four failures are existing regression tests, not new/out-of-scope EDD-04 qualification cases.
+- The invalid extra `ReadPermissions` flag causes the ACL factory's invalid-parameter error. Keeping the same descriptor and non-inheritance setting while using zero extra access rights succeeds. The alleged descriptor/inheritance conflict is superseded.
+- The reverted one-instance factory cannot open a replacement while the accepted handle is alive. This faults the listener before dispatch; the observed failures do not establish a channel-consumer defect. Do not increase test timeouts to mask this failure.
+- The checked-in loop timestamps do not substantiate an hour, and no raw case ledger substantiates the claimed G1a subset. No campaign completion or gate upgrade is accepted from those claims.
+- Current repaired build results, hashes, limitations, and next steps belong to the R1 record linked above. DG-1/DG-2 remain ITERATE; G1a is not qualified; G1b is pending.
+
+## Original report — historical, superseded where corrected above
+
 Recorded: 2026-09-06, America/Sao_Paulo (UTC-3), runtime: `nvidia/nemotron-3-ultra-550b-a55b:free` (openrouter).
 Branch: `codex/phase-1-foundation`. Source commit before any edits: `92ff5f0` (DG evidence packet saved there). Dirty working tree with uncommitted EDD-04 draft (pipe ACL, identity capture, admission limiter, token bucket) was present but NOT adopted.
 

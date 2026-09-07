@@ -389,14 +389,8 @@ public sealed class SingleInstanceCoordinator : IDisposable
     private static bool IsRecoverableFailure(Exception exception) =>
         exception is not (OutOfMemoryException or AccessViolationException);
 
-    private NamedPipeServerStream CreateServer(bool first) => new(
-        _identity.Names.PipeName,
-        PipeDirection.InOut,
-        maxNumberOfServerInstances: 1,
-        PipeTransmissionMode.Byte,
-        PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly | (first ? PipeOptions.FirstPipeInstance : PipeOptions.None),
-        inBufferSize: ActivationPipeProtocol.MaximumMessageBytes,
-        outBufferSize: ActivationPipeProtocol.MaximumMessageBytes);
+    private NamedPipeServerStream CreateServer(bool first) =>
+        NamedObjectSecurity.CreatePipe(_identity, MaximumConnections + 2, first);
 
     private sealed record ActivationWork(ActivationRequest Request, TaskCompletionSource<ActivationResponse> Completion,
         CancellationToken CancellationToken);
