@@ -1,5 +1,9 @@
 # Phase 1 Decision-Gate Evidence Status — Reviewed 2026-09-05
 
+## Continuation — 2026-09-07
+
+R3a serializes local listener startup/disposal and distinguishes initial readiness from current health. Three final full required-mode runs passed **92/92**; an earlier Shell catalog timeout is preserved in [R3a evidence](docs/evidence/phase1/R3A_LOCAL_READINESS.md), alongside RED concurrency/readiness results and five passing readiness repeats. [ADR-006](docs/decisions/ADR-006-local-activation-readiness.md) limits this to local lifecycle behavior; it does not establish cold-process recovery, full R3 completion, or any project-gate upgrade.
+
 ## Continuation — 2026-09-06
 
 R1 repaired the EDD-04 pipe-factory regression and R2 added dated errata to the open-model reports. The final required-mode local suite passes **85/85**, with five additional nine-test listener/security regression runs passing. See [R1/R2 evidence and limitations](docs/evidence/phase1/R1_PIPE_FACTORY_REPAIR.md) and the [pre-repair independent review](docs/council/2026-09-06-open-model-review-and-next-task.md). This supersedes the EDD-04 implementation status below: explicit pipe security/read-back and overlapping replacement are now exercised, while complete identity/readiness/recovery/admission qualification remains pending. It does not upgrade any project gate. The older review below remains historical context; G1a reports lack a verified case ledger.

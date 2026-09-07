@@ -11,6 +11,7 @@ public sealed class SingleInstanceCoordinator : IDisposable
 {
     private readonly CurrentSessionIdentity _identity;
     private readonly Mutex _mutex;
+    private readonly object _lifecycleGate = new();
     private readonly CancellationTokenSource _shutdown = new();
     private readonly bool _createdMutex;
     private const int MaximumConnections = 64;
@@ -23,7 +24,7 @@ public sealed class SingleInstanceCoordinator : IDisposable
     private Task<ActivationResponse>? _handlerTask;
     private int _listenerHealth;
     private long _rejectedConnections;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     private SingleInstanceCoordinator(
         CurrentSessionIdentity identity,
@@ -35,6 +36,10 @@ public sealed class SingleInstanceCoordinator : IDisposable
         _mutex = mutex;
         _createdMutex = createdMutex;
         _expectedServerImage = expectedServerImage;
+        if (!createdMutex)
+        {
+            _ready.SetResult(false);
+        }
     }
 
     public bool IsPrimary => _createdMutex;
@@ -42,9 +47,22 @@ public sealed class SingleInstanceCoordinator : IDisposable
     public ActivationListenerHealth ListenerHealth =>
         (ActivationListenerHealth)Volatile.Read(ref _listenerHealth);
 
-    public Task ListenerCompletion => _listener ?? Task.CompletedTask;
+    public Task ListenerCompletion
+    {
+        get
+        {
+            lock (_lifecycleGate)
+            {
+                return _listener ?? Task.CompletedTask;
+            }
+        }
+    }
 
+    /// <summary>One-time local pipe startup result, not current health or UI readiness.
+    /// Secondary instances complete false; successful startup stays true after shutdown.</summary>
     public Task<bool> Ready => _ready.Task;
+
+    public bool IsReady => !_disposed && ListenerHealth == ActivationListenerHealth.Listening;
 
     public long RejectedConnections => Interlocked.Read(ref _rejectedConnections);
 
@@ -66,6 +84,14 @@ public sealed class SingleInstanceCoordinator : IDisposable
     }
 
     public void StartListening(Func<ActivationRequest, CancellationToken, Task<ActivationResponse>> handler)
+    {
+        lock (_lifecycleGate)
+        {
+            StartListeningCore(handler);
+        }
+    }
+
+    private void StartListeningCore(Func<ActivationRequest, CancellationToken, Task<ActivationResponse>> handler)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(handler);
@@ -133,34 +159,44 @@ public sealed class SingleInstanceCoordinator : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
+        Task? listener;
+        lock (_lifecycleGate)
         {
-            return;
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            listener = _listener;
+            _ready.TrySetResult(false);
         }
 
-        _disposed = true;
-        _ready.TrySetResult(false);
-        _shutdown.Cancel();
-        _requests.Writer.TryComplete();
-
+        // Do not hold the lifecycle lock across cancellation callbacks or worker completion.
         try
         {
-            _listener?.Wait(TimeSpan.FromSeconds(1));
+            _shutdown.Cancel();
+            _requests.Writer.TryComplete();
+            listener?.Wait(TimeSpan.FromSeconds(1));
         }
         catch (AggregateException exception) when (exception.InnerExceptions.All(
             inner => inner is OperationCanceledException or ObjectDisposedException))
         {
         }
 
-        if (_listener is { IsCompleted: false })
+        finally
         {
-            // Preserve the namespace and cancellation source until all pipe workers have stopped.
-            _ = _listener.ContinueWith(_ => DisposeResources(), CancellationToken.None,
-                TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
-        }
-        else
-        {
-            DisposeResources();
+            _requests.Writer.TryComplete();
+            if (listener is { IsCompleted: false })
+            {
+                // Preserve the namespace and cancellation source until all pipe workers have stopped.
+                _ = listener.ContinueWith(_ => DisposeResources(), CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            }
+            else
+            {
+                DisposeResources();
+            }
         }
     }
 
