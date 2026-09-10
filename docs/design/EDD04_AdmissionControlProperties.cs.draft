@@ -1,0 +1,72 @@
+// ARCHIVED HERMES DESIGN DRAFT — not compiled and not verification evidence.
+// Review 2026-09-05: placeholders do not exercise admission; Core must not reference Windows.
+using EmberStart.Windows.Security;
+
+namespace EmberStart.Core.Tests.Security;
+
+/// <summary>
+/// EDD-04 pure Core property draft — synthetic fixtures only.
+/// NO production SingleInstanceCoordinator / pipe descriptor changes.
+/// Primary reviewer must approve descriptor construction, creation order, endpoint validation.
+/// </summary>
+public sealed class EDD04_AdmissionControlProperties
+{
+    // Design assertions (not executed against real Win32 objects here).
+    // Real enforcement requires primary-only implementation.
+
+    [Theory]
+    [InlineData(ProcessIntegrityLevel.High)]
+    [InlineData(ProcessIntegrityLevel.System)]
+    [InlineData(ProcessIntegrityLevel.Protected)]
+    public void ElevatedClient_Rejected(ProcessIntegrityLevel elevated)
+    {
+        // Design: integral >= High → admission false.
+        // Assert via synthetic identity fixture; real token check = primary only.
+        Assert.True(elevated is ProcessIntegrityLevel.High or
+                     ProcessIntegrityLevel.System or
+                     ProcessIntegrityLevel.Protected);
+    }
+
+    [Fact]
+    public void CrossUser_Blocked()
+    {
+        // Design: server SID != client SID → admission false; do not take over.
+        Assert.True(true); // placeholder: fixture compares two synthetic SID strings
+    }
+
+    [Fact]
+    public void CrossSession_Blocked()
+    {
+        // Design: session IDs differ → blocked.
+        Assert.True(true); // fixture: session A != session B
+    }
+
+    [Fact]
+    public void PreCreatedObject_Rejected_DoesNotDeleteUnknown()
+    {
+        // Design: object exists with non-matching descriptor → reject;
+        // recovery must NOT delete unknown named object (line 107 stop).
+        Assert.True(true);
+    }
+
+    [Fact]
+    public void Readiness_OnlyAfterPipeCreation_Verified()
+    {
+        // Design: readiness = false until descriptor read-back passes.
+        Assert.True(true);
+    }
+
+    [Fact]
+    public void Descriptor_NonInheriting_SingleUserSID()
+    {
+        // Design: Inherit = false; DACL = one user ACE only.
+        Assert.True(true);
+    }
+
+    [Fact]
+    public void RateLimit_Sustained20_PerBurst40_Bounded()
+    {
+        // Design: 20/s sustained, burst 40; no unbounded queue.
+        Assert.True(true);
+    }
+}
