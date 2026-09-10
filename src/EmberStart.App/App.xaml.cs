@@ -78,10 +78,22 @@ public partial class App : Application, IDisposable
 
     private async Task RedirectToPrimaryAsync(ActivationRequest request)
     {
+        // Single send attempt per process launch, per the R3b recovery contract: a timeout
+        // does not prove the handler did not apply a toggle, so no automatic replay occurs.
         try
         {
             var response = await _coordinator!.SendAsync(request).ConfigureAwait(true);
             Shutdown(response.Accepted ? 0 : 4);
+        }
+        catch (ActivationSendException exception) when (exception.TransmissionStarted)
+        {
+            // The request may already have been applied. Report uncertainty; never re-send.
+            MessageBox.Show(
+                "Ember Start could not confirm whether the request was applied. Native Start remains available with Ctrl+Esc.",
+                "Ember Start",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            Shutdown(4);
         }
         catch (Exception exception) when (
             exception is IOException or TimeoutException or OperationCanceledException or UnauthorizedAccessException)

@@ -12,7 +12,8 @@ public static class ActivationFixtureMarker;
 
 // This is a controlled transport fixture, not the WPF resident or a recovery implementation.
 public sealed record FixtureEvent(string Event, int ProcessId, bool? IsPrimary = null,
-    Guid? RequestId = null, bool? Accepted = null, string? Code = null, double? ElapsedMilliseconds = null);
+    Guid? RequestId = null, bool? Accepted = null, string? Code = null, double? ElapsedMilliseconds = null,
+    string? Stage = null, bool? TransmissionStarted = null);
 
 public static class Program
 {
@@ -134,6 +135,14 @@ public static class Program
             Emit("result", requestId: response.RequestId, accepted: response.Accepted, code: response.Code,
                 elapsedMilliseconds: timer.Elapsed.TotalMilliseconds);
         }
+        catch (ActivationSendException exception)
+        {
+            // Surface the stage so tests observe whether transmission may have begun.
+            Emit("result", requestId: requestId, accepted: false,
+                code: exception.InnerException?.GetType().Name ?? exception.GetType().Name,
+                elapsedMilliseconds: timer.Elapsed.TotalMilliseconds, stage: exception.Stage.ToString(),
+                transmissionStarted: exception.TransmissionStarted);
+        }
         catch (Exception exception) when (exception is IOException or TimeoutException or
             OperationCanceledException or UnauthorizedAccessException)
         {
@@ -143,12 +152,13 @@ public static class Program
     }
 
     private static void Emit(string name, bool? isPrimary = null, Guid? requestId = null,
-        bool? accepted = null, string? code = null, double? elapsedMilliseconds = null)
+        bool? accepted = null, string? code = null, double? elapsedMilliseconds = null,
+        string? stage = null, bool? transmissionStarted = null)
     {
         lock (OutputGate)
         {
             Console.WriteLine(JsonSerializer.Serialize(new FixtureEvent(name, Environment.ProcessId,
-                isPrimary, requestId, accepted, code, elapsedMilliseconds)));
+                isPrimary, requestId, accepted, code, elapsedMilliseconds, stage, transmissionStarted)));
         }
     }
 }

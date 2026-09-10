@@ -138,23 +138,36 @@ public sealed class SingleInstanceCoordinator : IDisposable
             PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly,
             TokenImpersonationLevel.Impersonation);
 
+        var stage = ActivationSendStage.Connecting;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(ActivationPipeProtocol.OperationTimeout);
-        await client.ConnectAsync(timeout.Token).ConfigureAwait(false);
-
-        if (!PipePeerValidator.IsServerAllowed(client, _identity, _expectedServerImage))
+        try
         {
-            throw new UnauthorizedAccessException("The activation server identity is not trusted.");
-        }
+            await client.ConnectAsync(timeout.Token).ConfigureAwait(false);
+            stage = ActivationSendStage.Connected;
 
-        await ActivationPipeProtocol.WriteRequestAsync(client, request, cancellationToken).ConfigureAwait(false);
-        var response = await ActivationPipeProtocol.ReadResponseAsync(client, cancellationToken).ConfigureAwait(false);
-        if (response.RequestId != request.RequestId)
+            if (!PipePeerValidator.IsServerAllowed(client, _identity, _expectedServerImage))
+            {
+                throw new UnauthorizedAccessException("The activation server identity is not trusted.");
+            }
+
+            stage = ActivationSendStage.Validated;
+            await ActivationPipeProtocol.WriteRequestAsync(client, request, cancellationToken).ConfigureAwait(false);
+            stage = ActivationSendStage.RequestWritten;
+            var response = await ActivationPipeProtocol.ReadResponseAsync(client, cancellationToken).ConfigureAwait(false);
+            stage = ActivationSendStage.ResponseRead;
+            if (response.RequestId != request.RequestId)
+            {
+                throw new InvalidDataException("Activation response did not match the request.");
+            }
+
+            return response;
+        }
+        catch (Exception exception) when (exception is not ActivationSendException and not
+            (OutOfMemoryException or AccessViolationException))
         {
-            throw new InvalidDataException("Activation response did not match the request.");
+            throw new ActivationSendException(stage, exception);
         }
-
-        return response;
     }
 
     public void Dispose()

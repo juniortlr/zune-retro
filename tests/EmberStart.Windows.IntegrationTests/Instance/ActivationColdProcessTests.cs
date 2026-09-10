@@ -21,6 +21,10 @@ public sealed class ActivationColdProcessTests(ITestOutputHelper output)
         Assert.Equal(firstId, unavailable.RequestId);
         Assert.False(unavailable.Accepted);
         Assert.True(unavailable.Code is "OperationCanceledException" or "TaskCanceledException" or "TimeoutException");
+        // Connect-stage failure: transmission provably never began, so the contract
+        // reports TransmissionStarted=false for this attempt.
+        Assert.Equal("Connecting", unavailable.Stage);
+        Assert.False(unavailable.TransmissionStarted);
         Assert.InRange(unavailable.ElapsedMilliseconds!.Value, 400, 2000);
         Assert.False((await secondary.CommandAsync("probe-held", "probed")).IsPrimary);
         Assert.DoesNotContain(primary.Observed, item => item.Event == "applied");
@@ -124,6 +128,10 @@ public sealed class ActivationColdProcessTests(ITestOutputHelper output)
         Assert.Equal(requestId, response.RequestId);
         Assert.False(response.Accepted);
         Assert.True(response.Code is "HandlerTimedOut" or "OperationCanceledException" or "TaskCanceledException" or "TimeoutException");
+        // The full request frame reached the primary: uncertainty is now observable as
+        // RequestWritten/TransmissionStarted=true, which forbids any automatic replay.
+        Assert.Equal("RequestWritten", response.Stage);
+        Assert.True(response.TransmissionStarted);
         await primary.WriteAsync("finish-handler");
         Assert.Equal(requestId, (await primary.ReadAsync("handler-finished")).RequestId);
         await secondary.StopAsync();
