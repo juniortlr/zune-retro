@@ -18,6 +18,7 @@
     <ProjectReference Include="..\..\src\EmberStart.Core\EmberStart.Core.csproj" />
     <ProjectReference Include="..\..\src\EmberStart.Windows\EmberStart.Windows.csproj" />
     <ProjectReference Include="..\EmberStart.LaunchFixture\EmberStart.LaunchFixture.csproj" />
+    <ProjectReference Include="..\EmberStart.ActivationFixture\EmberStart.ActivationFixture.csproj" />
   </ItemGroup>
 
   <ItemGroup>
